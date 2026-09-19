@@ -110,10 +110,11 @@ func SlowNTimesThenReturn[R any](t *testing.T, slowTimes int, sleepTime time.Dur
 }
 
 type TestExecution[R any] struct {
-	TheLastResult R
-	TheAttempts   int
-	TheRetries    int
-	TheHedges     int
+	TheLastResult  R
+	TheAttempts    int
+	TheRetries     int
+	TheHedges      int
+	TheElapsedTime time.Duration
 }
 
 func (e TestExecution[R]) Attempts() int {
@@ -145,7 +146,7 @@ func (e TestExecution[R]) IsRetry() bool {
 }
 
 func (e TestExecution[R]) ElapsedTime() time.Duration {
-	panic("unimplemented stub")
+	return e.TheElapsedTime
 }
 
 func (e TestExecution[R]) IsHedge() bool {

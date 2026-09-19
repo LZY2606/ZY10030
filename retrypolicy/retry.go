@@ -275,11 +275,13 @@ func (c *config[R]) WithMaxDuration(maxDuration time.Duration) Builder[R] {
 }
 
 func (c *config[R]) WithDelay(delay time.Duration) Builder[R] {
+	c.resetDelay()
 	c.BaseDelayablePolicy.WithDelay(delay)
 	return c
 }
 
 func (c *config[R]) WithDelayFunc(delayFunc failsafe.DelayFunc[R]) Builder[R] {
+	c.resetDelay()
 	c.BaseDelayablePolicy.WithDelayFunc(delayFunc)
 	return c
 }
@@ -289,23 +291,30 @@ func (c *config[R]) WithBackoff(delay time.Duration, maxDelay time.Duration) Bui
 }
 
 func (c *config[R]) WithBackoffFactor(delay time.Duration, maxDelay time.Duration, delayFactor float64) Builder[R] {
+	c.resetDelay()
 	c.BaseDelayablePolicy.WithDelay(delay)
 	c.maxDelay = maxDelay
 	c.delayFactor = delayFactor
-
-	// Clear random delay
-	c.delayMin = 0
-	c.delayMax = 0
 	return c
 }
 
 func (c *config[R]) WithRandomDelay(delayMin time.Duration, delayMax time.Duration) Builder[R] {
+	c.resetDelay()
 	c.delayMin = delayMin
 	c.delayMax = delayMax
-
-	// Clear non-random delay
-	c.maxDelay = 0
 	return c
+}
+
+// resetDelay clears any previously configured delay so that the fixed, backoff, random, and computed delay modes are
+// mutually exclusive, with the most recently configured mode taking effect. Jitter settings are orthogonal to the
+// delay mode and are not affected.
+func (c *config[R]) resetDelay() {
+	c.Delay = 0
+	c.DelayFunc = nil
+	c.delayMin = 0
+	c.delayMax = 0
+	c.maxDelay = 0
+	c.delayFactor = 0
 }
 
 func (c *config[R]) WithJitter(jitter time.Duration) Builder[R] {
@@ -359,8 +368,17 @@ func (c *config[R]) allowsRetries() bool {
 
 func (c *config[R]) Build() RetryPolicy[R] {
 	return &retryPolicy[R]{
-		config: *c, // TODO copy base fields
+		config: *c.copy(),
 	}
+}
+
+// copy returns a copy of the config that does not share mutable state with the original, so that policies built from
+// the same builder are isolated from later builder configuration.
+func (c *config[R]) copy() *config[R] {
+	cp := *c
+	cp.BaseFailurePolicy = c.BaseFailurePolicy.Copy()
+	cp.BaseAbortablePolicy = c.BaseAbortablePolicy.Copy()
+	return &cp
 }
 
 func (rp *retryPolicy[R]) ToExecutor(_ R) any {

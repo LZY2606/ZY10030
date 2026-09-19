@@ -3,6 +3,7 @@ package policy
 import (
 	"errors"
 	"reflect"
+	"slices"
 	"time"
 
 	"github.com/failsafe-go/failsafe-go"
@@ -76,6 +77,13 @@ func (p *BaseFailurePolicy[R]) IsFailure(result R, err error) bool {
 	return err != nil && !p.errorsChecked
 }
 
+// Copy returns a copy of the BaseFailurePolicy that does not share mutable state with the original.
+func (p *BaseFailurePolicy[R]) Copy() BaseFailurePolicy[R] {
+	cp := *p
+	cp.failureConditions = slices.Clone(p.failureConditions)
+	return cp
+}
+
 // BaseDelayablePolicy provides a base for implementing DelayablePolicyBuilder.
 type BaseDelayablePolicy[R any] struct {
 	Delay     time.Duration
@@ -136,6 +144,13 @@ func (c *BaseAbortablePolicy[R]) AbortIf(predicate func(R, error) bool) {
 
 func (c *BaseAbortablePolicy[R]) IsConfigured() bool {
 	return len(c.abortConditions) > 0
+}
+
+// Copy returns a copy of the BaseAbortablePolicy that does not share mutable state with the original.
+func (c *BaseAbortablePolicy[R]) Copy() BaseAbortablePolicy[R] {
+	cp := *c
+	cp.abortConditions = slices.Clone(c.abortConditions)
+	return cp
 }
 
 func (c *BaseAbortablePolicy[R]) IsAbortable(result R, err error) bool {
