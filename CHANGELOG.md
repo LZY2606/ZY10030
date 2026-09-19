@@ -1,5 +1,21 @@
 ## Upcoming Release
 
+### Bug Fixes
+
+- Fixed `retrypolicy.Builder` delay modes not being mutually exclusive. Symptom: configuring `WithBackoff` and then
+  switching to `WithRandomDelay` still applied the earlier fixed/backoff wait to every retry, and reversing the
+  configuration order behaved differently. Root cause: `WithDelay`, `WithDelayFunc`, `WithBackoffFactor` and
+  `WithRandomDelay` each wrote their own fields without clearing the other modes' fields (`Delay`, `DelayFunc`,
+  `maxDelay`/`delayFactor`, `delayMin`/`delayMax`), so stale state leaked through the executor's field precedence.
+  Delay modes are now mutually exclusive: the last configured mode (fixed, backoff, random, or `DelayFunc`) fully
+  replaces any previously configured mode, while jitter remains an orthogonal modifier of the final mode. The same
+  replacement now also applies between `WithJitter` and `WithJitterFactor`, as their docs already stated. Existing
+  coverage missed this because each delay type was only ever tested in isolation, never in chains that switch modes
+  in different orders.
+- Fixed `retrypolicy.Builder.Build` to snapshot the builder configuration, so policies built from the same builder
+  are isolated from later builder configuration and from each other.
+- Fixed backoff delays overflowing to negative durations instead of clamping to the max delay.
+
 ## 0.9.7
 
 ### Bug Fixes

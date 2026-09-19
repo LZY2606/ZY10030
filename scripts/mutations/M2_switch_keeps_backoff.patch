@@ -1,0 +1,11 @@
+--- a/retrypolicy/retry.go
++++ b/retrypolicy/retry.go
+@@ -279,8 +279,6 @@
+ 
+ 	// Clear backoff, random, and computed delays since delay modes are mutually exclusive
+ 	c.DelayFunc = nil
+-	c.maxDelay = 0
+-	c.delayFactor = 0
+ 	c.delayMin = 0
+ 	c.delayMax = 0
+ 	return c

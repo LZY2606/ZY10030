@@ -145,8 +145,12 @@ func (e *executor[R]) getFixedOrRandomDelay(exec failsafe.ExecutionAttempt[R]) t
 	if e.Delay != 0 {
 		// Adjust for backoffs
 		if e.lastDelay != 0 && exec.Retries() >= 1 && e.maxDelay != 0 {
-			backoffDelay := time.Duration(float64(e.lastDelay) * e.delayFactor)
-			e.lastDelay = min(backoffDelay, e.maxDelay)
+			// Compare as floats to avoid overflowing when converting a large backoff to a time.Duration
+			if backoffDelay := float64(e.lastDelay) * e.delayFactor; backoffDelay >= float64(e.maxDelay) {
+				e.lastDelay = e.maxDelay
+			} else {
+				e.lastDelay = time.Duration(backoffDelay)
+			}
 		} else {
 			e.lastDelay = e.Delay
 		}

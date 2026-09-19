@@ -276,11 +276,25 @@ func (c *config[R]) WithMaxDuration(maxDuration time.Duration) Builder[R] {
 
 func (c *config[R]) WithDelay(delay time.Duration) Builder[R] {
 	c.BaseDelayablePolicy.WithDelay(delay)
+
+	// Clear backoff, random, and computed delays since delay modes are mutually exclusive
+	c.DelayFunc = nil
+	c.maxDelay = 0
+	c.delayFactor = 0
+	c.delayMin = 0
+	c.delayMax = 0
 	return c
 }
 
 func (c *config[R]) WithDelayFunc(delayFunc failsafe.DelayFunc[R]) Builder[R] {
 	c.BaseDelayablePolicy.WithDelayFunc(delayFunc)
+
+	// Clear fixed, backoff, and random delays since delay modes are mutually exclusive
+	c.Delay = 0
+	c.maxDelay = 0
+	c.delayFactor = 0
+	c.delayMin = 0
+	c.delayMax = 0
 	return c
 }
 
@@ -293,7 +307,8 @@ func (c *config[R]) WithBackoffFactor(delay time.Duration, maxDelay time.Duratio
 	c.maxDelay = maxDelay
 	c.delayFactor = delayFactor
 
-	// Clear random delay
+	// Clear random and computed delays since delay modes are mutually exclusive
+	c.DelayFunc = nil
 	c.delayMin = 0
 	c.delayMax = 0
 	return c
@@ -303,18 +318,27 @@ func (c *config[R]) WithRandomDelay(delayMin time.Duration, delayMax time.Durati
 	c.delayMin = delayMin
 	c.delayMax = delayMax
 
-	// Clear non-random delay
+	// Clear fixed, backoff, and computed delays since delay modes are mutually exclusive
+	c.Delay = 0
+	c.DelayFunc = nil
 	c.maxDelay = 0
+	c.delayFactor = 0
 	return c
 }
 
 func (c *config[R]) WithJitter(jitter time.Duration) Builder[R] {
 	c.jitter = jitter
+
+	// Clear jitter factor since jitter settings are mutually exclusive
+	c.jitterFactor = 0
 	return c
 }
 
 func (c *config[R]) WithJitterFactor(jitterFactor float64) Builder[R] {
 	c.jitterFactor = jitterFactor
+
+	// Clear jitter duration since jitter settings are mutually exclusive
+	c.jitter = 0
 	return c
 }
 
@@ -359,8 +383,17 @@ func (c *config[R]) allowsRetries() bool {
 
 func (c *config[R]) Build() RetryPolicy[R] {
 	return &retryPolicy[R]{
-		config: *c, // TODO copy base fields
+		config: c.copy(),
 	}
+}
+
+// copy returns a snapshot of the config that shares no mutable state with the builder, so that policies built from the
+// same builder are isolated from each other and from later builder configuration.
+func (c *config[R]) copy() config[R] {
+	cpy := *c
+	cpy.BaseFailurePolicy = c.BaseFailurePolicy.Copy()
+	cpy.BaseAbortablePolicy = c.BaseAbortablePolicy.Copy()
+	return cpy
 }
 
 func (rp *retryPolicy[R]) ToExecutor(_ R) any {

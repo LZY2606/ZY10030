@@ -3,6 +3,7 @@ package policy
 import (
 	"errors"
 	"reflect"
+	"slices"
 	"time"
 
 	"github.com/failsafe-go/failsafe-go"
@@ -62,6 +63,12 @@ func (p *BaseFailurePolicy[R]) OnSuccess(listener func(event failsafe.ExecutionE
 
 func (p *BaseFailurePolicy[R]) OnFailure(listener func(event failsafe.ExecutionEvent[R])) {
 	p.onFailure = listener
+}
+
+// Copy returns a copy of the BaseFailurePolicy that shares no mutable state with the original.
+func (p BaseFailurePolicy[R]) Copy() BaseFailurePolicy[R] {
+	p.failureConditions = slices.Clone(p.failureConditions)
+	return p
 }
 
 func (p *BaseFailurePolicy[R]) IsFailure(result R, err error) bool {
@@ -132,6 +139,12 @@ func (c *BaseAbortablePolicy[R]) AbortIf(predicate func(R, error) bool) {
 	c.abortConditions = append(c.abortConditions, func(result R, err error) bool {
 		return predicate(result, err)
 	})
+}
+
+// Copy returns a copy of the BaseAbortablePolicy that shares no mutable state with the original.
+func (c BaseAbortablePolicy[R]) Copy() BaseAbortablePolicy[R] {
+	c.abortConditions = slices.Clone(c.abortConditions)
+	return c
 }
 
 func (c *BaseAbortablePolicy[R]) IsConfigured() bool {

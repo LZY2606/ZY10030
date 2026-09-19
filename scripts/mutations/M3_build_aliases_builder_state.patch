@@ -1,0 +1,31 @@
+--- a/retrypolicy/retry.go
++++ b/retrypolicy/retry.go
+@@ -190,7 +190,7 @@
+ var _ Builder[any] = &config[any]{}
+ 
+ type retryPolicy[R any] struct {
+-	config[R]
++	*config[R]
+ }
+ 
+ // NewWithDefaults creates a RetryPolicy for execution result type R that allows 3 execution attempts max with no delay. To
+@@ -383,7 +383,7 @@
+ 
+ func (c *config[R]) Build() RetryPolicy[R] {
+ 	return &retryPolicy[R]{
+-		config: c.copy(),
++		config: c,
+ 	}
+ }
+ 
+--- a/retrypolicy/retryexecutor_test.go
++++ b/retrypolicy/retryexecutor_test.go
+@@ -14,7 +14,7 @@
+ 	rpc := NewBuilder[any]().WithBackoffFactor(2*time.Second, 30*time.Second, 2).(*config[any])
+ 	rpe := &executor[any]{
+ 		retryPolicy: &retryPolicy[any]{
+-			config: *rpc,
++			config: rpc,
+ 		},
+ 	}
+ 	exec := &testutil.TestExecution[any]{}
